@@ -292,7 +292,7 @@ function StudentCard({ student, onOpen }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <span className="font-serif text-[17px] text-[#16302B] truncate">{student.name}</span>
-          <span className="text-[12px] text-[#8A8676] tabular-nums shrink-0">NT${fmtMoney(student.hourlyRate)}/hr</span>
+          <span className="text-[12px] text-[#8A8676] tabular-nums shrink-0">${fmtMoney(student.hourlyRate)}/hr</span>
         </div>
         <div className="mt-2"><Tally cycle={cur} total={student.classesPerCycle} /></div>
         {lc > 2 && (
@@ -404,10 +404,10 @@ function StudentDetail({ student, onBack, onAddSession, onRemoveSession, onDelet
           ) : (
             <>
               <div className="text-[13px] text-[#8A8676]">
-                時薪 <span className="text-[#16302B] font-medium tabular-nums">NT${fmtMoney(student.hourlyRate)}</span>
+                時薪 <span className="text-[#16302B] font-medium tabular-nums">${fmtMoney(student.hourlyRate)}</span>
                 {" · "}每堂 <span className="text-[#16302B] font-medium tabular-nums">{student.sessionHours} hr</span>
                 {" · "}每 <span className="text-[#16302B] font-medium tabular-nums">{student.classesPerCycle || 10}</span> 堂收費
-                {" · "}單堂收入 <span className="text-[#16302B] font-medium tabular-nums">NT${fmtMoney(perClass)}</span>
+                {" · "}單堂收入 <span className="text-[#16302B] font-medium tabular-nums">${fmtMoney(perClass)}</span>
               </div>
               <button onClick={() => setEditingRate(true)} className="text-[#B9B6A8]"><IconPencil size={14} /></button>
             </>
@@ -433,7 +433,7 @@ function StudentDetail({ student, onBack, onAddSession, onRemoveSession, onDelet
               {summary.classCount === 0 ? "本年度無上課紀錄" : summary.eligible ? "符合退款資格" : "不符合退款資格"}
             </span>
             {summary.eligible && summary.refund > 0 && (
-              <span className="text-[14px] font-medium text-[#0F6B5C] tabular-nums">退 NT${fmtMoney(summary.refund)}</span>
+              <span className="text-[14px] font-medium text-[#0F6B5C] tabular-nums">退 ${fmtMoney(summary.refund)}</span>
             )}
           </div>
         </div>
@@ -525,7 +525,7 @@ function IncomeView({ students }) {
       </div>
       <div className="bg-[#16302B] rounded-2xl p-5 mb-5 text-white">
         <div className="text-[12px] text-[#B9D4CB] mb-1">{monthLabel(selected)}教學收入</div>
-        <div className="font-serif text-[32px] tabular-nums">NT$ {fmtMoney(data.total)}</div>
+        <div className="font-serif text-[32px] tabular-nums">$ {fmtMoney(data.total)}</div>
         <div className="text-[12px] text-[#B9D4CB] mt-1">依實際上課堂數 × 時薪計算</div>
       </div>
       <div className="space-y-2">
@@ -533,7 +533,7 @@ function IncomeView({ students }) {
         {rows.map((r) => (
           <div key={r.name} className="bg-white rounded-lg border border-[#E7E4D9] px-4 py-3 flex items-center justify-between">
             <span className="text-[14.5px] text-[#16302B]">{r.name}</span>
-            <span className="text-[14.5px] font-medium text-[#16302B] tabular-nums">NT$ {fmtMoney(r.amt)}</span>
+            <span className="text-[14.5px] font-medium text-[#16302B] tabular-nums">$ {fmtMoney(r.amt)}</span>
           </div>
         ))}
       </div>
@@ -555,7 +555,7 @@ function SettlementView({ students }) {
       </div>
       <div className="bg-[#16302B] rounded-2xl p-5 mb-5 text-white">
         <div className="text-[12px] text-[#B9D4CB] mb-1">{year} 年應退款總額</div>
-        <div className="font-serif text-[32px] tabular-nums">NT$ {fmtMoney(totalRefund)}</div>
+        <div className="font-serif text-[32px] tabular-nums">$ {fmtMoney(totalRefund)}</div>
         <div className="text-[12px] text-[#B9D4CB] mt-1">全年請假 ≤ 上課堂數 1/4 者，超額請假費用退還</div>
       </div>
       <div className="space-y-2">
@@ -569,7 +569,7 @@ function SettlementView({ students }) {
               </span>
             </div>
             <div className="text-[12.5px] text-[#8A8676]">上課 {r.classCount} 堂 · 請假 {r.leaveCount} 次 · 門檻 {r.threshold.toFixed(1)}</div>
-            {r.refund > 0 && <div className="text-[13.5px] text-[#0F6B5C] font-medium tabular-nums mt-1">退款 NT${fmtMoney(r.refund)}</div>}
+            {r.refund > 0 && <div className="text-[13.5px] text-[#0F6B5C] font-medium tabular-nums mt-1">退款 ${fmtMoney(r.refund)}</div>}
           </div>
         ))}
       </div>
