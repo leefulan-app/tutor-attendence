@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>我的上課記錄</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+  body { font-family: 'Noto Sans TC', sans-serif; background:#F7F8F3; margin:0; }
+  .font-serif { font-family: 'Noto Serif TC', serif; }
+</style>
+</head>
+<body>
+<div id="app" class="max-w-md mx-auto min-h-screen px-4 py-8"></div>
+
+<script>
+// ⚠️ Before deploying: paste your Google Drive API key below.
+// Create it in Google Cloud Console > Credentials > API key, restrict it to
+// "Google Drive API" and restrict HTTP referrers to your hosting domain.
+const API_KEY = "AIzaSyCS0brCaj-uPSm_mJImiuFfh6y46jVI0XM";
+
+const params = new URLSearchParams(location.search);
+const fileId = params.get("id");
+const app = document.getElementById("app");
+
+let currentLang = "zh";
+let currentData = null;
+
+const STRINGS = {
+  zh: {
+    subtitle: "資料即時同步，僅供查看",
+    yearlyTitle: "每年出席總覽",
+    yearSuffix: " 年",
+    classesUnit: "堂",
+    leaveUnit: "次",
+    classesWord: "上課",
+    leaveWord: "請假",
+    round: (n) => `第 ${n} 輪`,
+    inProgress: "（進行中）",
+    completedOn: (d) => `已於 ${d} 完成`,
+    paymentDue: "預計付款期限：",
+    notSet: "尚未設定",
+    classTag: "上課",
+    leaveTag: "請假",
+    noRecords: "尚無紀錄",
+    noRecordsPage: "還沒有紀錄",
+    title: (name) => `${name} 的上課記錄`,
+    linkError: "連結不完整，請跟老師確認連結是否正確。",
+    notConfigured: "這個頁面尚未設定完成，請聯絡老師。",
+    loadError: "讀取資料失敗，請確認連結是否正確，或稍後再試。",
+  },
+  en: {
+    subtitle: "Synced in real time — view only",
+    yearlyTitle: "Yearly Summary",
+    yearSuffix: "",
+    classesUnit: "",
+    leaveUnit: "",
+    classesWord: "Classes",
+    leaveWord: "Leave",
+    round: (n) => `Round ${n}`,
+    inProgress: "(In progress)",
+    completedOn: (d) => `Completed on ${d}`,
+    paymentDue: "Payment due: ",
+    notSet: "Not set",
+    classTag: "Class",
+    leaveTag: "Leave",
+    noRecords: "No records yet",
+    noRecordsPage: "No records yet",
+    title: (name) => `${name}'s Lesson Record`,
+    linkError: "Incomplete link. Please check with your teacher.",
+    notConfigured: "This page isn't fully set up yet. Please contact your teacher.",
+    loadError: "Failed to load data. Please check the link, or try again later.",
+  },
+};
+
+function fmtDate(d) {
+  const dt = new Date(d + "T00:00:00");
+  return `${dt.getMonth() + 1}/${dt.getDate()}`;
+}
+
+function classCount(cycle) {
+  return cycle.sessions.filter((s) => s.type === "class").length;
+}
+
+function predictedCycleDeadline(cycle, weekdays, classesPerCycle) {
+  if (!weekdays || weekdays.length === 0) return null;
+  const remaining = classesPerCycle - classCount(cycle);
+  if (remaining <= 0) return null;
+  const sorted = [...cycle.sessions].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const fromDate = sorted.length ? sorted[sorted.length - 1].date : new Date().toISOString().slice(0, 10);
+  let d = new Date(fromDate + "T00:00:00");
+  let count = 0;
+  for (let i = 0; i < 120; i++) {
+    d.setDate(d.getDate() + 1);
+    if (weekdays.includes(d.getDay())) {
+      count++;
+      if (count === remaining + 1) return d.toISOString().slice(0, 10);
+    }
+  }
+  return null;
+}
+
+function tallyHtml(cycle, total, T) {
+  const n = total || 10;
+  const classes = cycle.sessions.filter((s) => s.type === "class");
+  const leaves = cycle.sessions.filter((s) => s.type === "leave");
+  let marks = "";
+  const dotWidth = n > 14 ? 4 : 7;
+  for (let i = 0; i < n; i++) {
+    const filled = !!classes[i];
+    marks += `<span style="display:inline-block;width:${dotWidth}px;height:18px;border-radius:1px;margin-right:3px;background:${filled ? "#0F6B5C" : "#E4E1D6"}"></span>`;
+  }
+  const leaveTag = leaves.length ? `<span style="font-size:11px;color:#C1833D;font-weight:500;margin-left:6px;">${T.leaveWord} ${leaves.length}</span>` : "";
+  return `<div style="display:flex;align-items:center;flex-wrap:wrap;">${marks}${leaveTag}</div>`;
+}
+
+function yearlySummaryHtml(data, T) {
+  const map = {};
+  data.cycles.forEach((cycle) => {
+    cycle.sessions.forEach((s) => {
+      const y = s.date.slice(0, 4);
+      if (!map[y]) map[y] = { classCount: 0, leaveCount: 0 };
+      if (s.type === "class") map[y].classCount++;
+      else map[y].leaveCount++;
+    });
+  });
+  const years = Object.keys(map).sort((a, b) => b - a);
+  if (years.length === 0) return "";
+  const rowsHtml = years.map((y) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #F0EEE3;font-size:13.5px;">
+      <span style="color:#16302B;font-weight:500;">${y}${T.yearSuffix}</span>
+      <span style="color:#8A8676;">${T.classesWord} <span style="color:#16302B;font-weight:500;">${map[y].classCount}</span> ${T.classesUnit} · ${T.leaveWord} <span style="color:#16302B;font-weight:500;">${map[y].leaveCount}</span> ${T.leaveUnit}</span>
+    </div>`).join("");
+  return `
+    <div style="background:#fff;border:1px solid #E7E4D9;border-radius:12px;padding:16px;margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:500;color:#16302B;margin-bottom:2px;">${T.yearlyTitle}</div>
+      ${rowsHtml}
+    </div>`;
+}
+
+function langToggleHtml() {
+  const btn = (code, label) => `<button onclick="setLang('${code}')" style="font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid ${currentLang === code ? "#16302B" : "#DEDACB"};background:${currentLang === code ? "#16302B" : "#fff"};color:${currentLang === code ? "#fff" : "#16302B"};font-weight:500;cursor:pointer;">${label}</button>`;
+  return `<div style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:8px;">${btn("zh", "中文")}${btn("en", "English")}</div>`;
+}
+
+function setLang(code) {
+  currentLang = code;
+  if (currentData) render(currentData);
+}
+window.setLang = setLang;
+
+function render(data) {
+  currentData = data;
+  const T = STRINGS[currentLang];
+  const total = data.classesPerCycle || 10;
+  const cycles = [...data.cycles].reverse();
+  const cardsHtml = cycles.map((cycle, idx) => {
+    const isCurrent = idx === 0 && !cycle.completedAt;
+    if (cycle.sessions.length === 0 && !isCurrent) return "";
+    const cycleNumber = data.cycles.length - idx;
+    const cc = cycle.sessions.filter((s) => s.type === "class").length;
+    const statusHtml = cycle.completedAt
+      ? `<span style="font-size:12px;color:#8A8676;">${T.completedOn(fmtDate(cycle.completedAt))}</span>`
+      : `<span style="font-size:12px;color:#8A8676;">${cc}/${total}</span>`;
+    const expectedDate = !cycle.completedAt ? predictedCycleDeadline(cycle, data.weekdays, total) : null;
+    const deadlineHtml = !cycle.completedAt
+      ? `<div style="font-size:11.5px;color:#8A8676;margin-top:6px;">${T.paymentDue}${
+          expectedDate
+            ? `<span style="color:#16302B;font-weight:500;">${fmtDate(expectedDate)}</span>`
+            : T.notSet
+        }</div>`
+      : "";
+    const rowsHtml = cycle.sessions.map((s) => `
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13.5px;border-top:1px solid #F0EEE3;">
+        <span style="color:#16302B;">${s.date}</span>
+        <span style="font-size:11px;padding:1px 6px;border-radius:4px;background:${s.type === "class" ? "rgba(15,107,92,0.1)" : "rgba(193,131,61,0.1)"};color:${s.type === "class" ? "#0F6B5C" : "#C1833D"};">
+          ${s.type === "class" ? T.classTag : T.leaveTag}
+        </span>
+      </div>`).join("") || `<div style="padding:8px 0;font-size:13px;color:#B9B6A8;">${T.noRecords}</div>`;
+    return `
+      <div style="background:#fff;border:1px solid #E7E4D9;border-radius:12px;padding:16px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+          <span style="font-size:13px;font-weight:500;color:#16302B;">${T.round(cycleNumber)} ${isCurrent ? `<span style="color:#0F6B5C;">${T.inProgress}</span>` : ""}</span>
+          ${statusHtml}
+        </div>
+        ${tallyHtml(cycle, total, T)}
+        ${deadlineHtml}
+        <div style="margin-top:10px;">${rowsHtml}</div>
+      </div>`;
+  }).join("");
+
+  app.innerHTML = `
+    ${langToggleHtml()}
+    <h1 style="font-family:'Noto Serif TC',serif;font-size:22px;color:#16302B;margin-bottom:4px;">${T.title(data.name)}</h1>
+    <p style="font-size:12.5px;color:#8A8676;margin-bottom:20px;">${T.subtitle}</p>
+    ${yearlySummaryHtml(data, T)}
+    ${cardsHtml || `<p style="text-align:center;color:#B9B6A8;padding:40px 0;">${T.noRecordsPage}</p>`}
+  `;
+}
+
+function renderError(msgKey) {
+  const T = STRINGS[currentLang];
+  app.innerHTML = `${langToggleHtml()}<div style="text-align:center;padding:60px 20px;color:#8A8676;font-size:14px;">${T[msgKey]}</div>`;
+}
+window.renderErrorRetry = null;
+
+if (!fileId) {
+  renderError("linkError");
+} else if (!API_KEY || API_KEY === "PASTE_YOUR_DRIVE_API_KEY_HERE") {
+  renderError("notConfigured");
+} else {
+  fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`)
+    .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
+    .then(render)
+    .catch(() => renderError("loadError"));
+}
+</script>
+</body>
+</html>
