@@ -750,7 +750,7 @@ function StudentDetail({ student, onBack, onAddSession, onRemoveSession, onDelet
                     {!cycle.completedAt && (
                       <div className="mt-1.5 text-[11.5px] text-[#8A8676]">
                         預計付款期限：{expectedDate ? (
-                          <span className="text-[#16302B] font-medium tabular-nums">{fmtDate(expectedDate)}（下次上課前）</span>
+                          <span className="text-[#16302B] font-medium tabular-nums">{fmtDate(expectedDate)}</span>
                         ) : (
                           <span>設定固定上課星期後可顯示</span>
                         )}
