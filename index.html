@@ -673,6 +673,7 @@ function StudentDetail({ student, onBack, onAddSession, onRemoveSession, onDelet
   const [weekdaysInput, setWeekdaysInput] = useState(student.weekdays || []);
   const [emailInput, setEmailInput] = useState(student.email || "");
   const [pausedInput, setPausedInput] = useState(student.status === "paused");
+  const [viaPlatformInput, setViaPlatformInput] = useState(!!student.viaPlatform);
   const [paidPrompt, setPaidPrompt] = useState(null);
   const years = yearsWithData([student]);
   const [year, setYear] = useState(years[0]);
@@ -710,7 +711,11 @@ function StudentDetail({ student, onBack, onAddSession, onRemoveSession, onDelet
                 <span className="text-[12px] text-[#8A8676]">生效日期</span>
                 <input type="date" value={rateEffectiveDate} onChange={(e) => setRateEffectiveDate(e.target.value)} className="border border-[#DEDACB] rounded px-2 py-1 text-[13px]" />
               </div>
-              {!student.viaPlatform && (
+              <label className="flex items-center gap-2 mb-2">
+                <input type="checkbox" checked={viaPlatformInput} onChange={(e) => setViaPlatformInput(e.target.checked)} className="w-4 h-4" />
+                <span className="text-[13px] text-[#16302B]">透過平台收費（不用手動跟學生收款，僅記錄堂數與計入收入）</span>
+              </label>
+              {!viaPlatformInput && (
                 <div className="flex items-center gap-2 flex-wrap mb-2">
                   <input type="number" value={cycleLenInput} onChange={(e) => setCycleLenInput(e.target.value)} className="w-14 border border-[#DEDACB] rounded px-2 py-1 text-[14px]" />
                   <span className="text-[12px] text-[#8A8676]">堂收費 ·</span>
@@ -733,13 +738,14 @@ function StudentDetail({ student, onBack, onAddSession, onRemoveSession, onDelet
               </label>
               <button onClick={() => {
                 const r = parseFloat(rateInput), h = parseFloat(hoursInput), n = parseInt(cycleLenInput, 10), fl = freeLeavesInput === "" ? 2 : parseInt(freeLeavesInput, 10);
-                if (r > 0 && h > 0 && (student.viaPlatform || n > 0)) {
+                if (r > 0 && h > 0 && (viaPlatformInput || n > 0)) {
                   onEditRate({
                     name: nameInput.trim() || student.name,
                     rate: r, rateEffectiveDate,
                     hours: h, cycleLen: n, weekdays: weekdaysInput,
                     email: emailInput.trim(), freeLeaves: fl,
                     status: pausedInput ? "paused" : "active",
+                    viaPlatform: viaPlatformInput,
                   });
                 }
                 setEditingRate(false);
@@ -847,17 +853,19 @@ function StudentDetail({ student, onBack, onAddSession, onRemoveSession, onDelet
               {(() => {
                 const prevCycle = cyclesDesc[idx + 1];
                 const prevCompletedAt = prevCycle && prevCycle.completedAt;
-                const expectedDate = !cycle.completedAt
+                const expectedDate = !cycle.completedAt && cycle.paidDate
                   ? predictedCycleDeadline(cycle, student.weekdays, student.classesPerCycle || 10)
                   : null;
                 return (
                   <>
                     {!cycle.completedAt && (
                       <div className="mt-1.5 text-[11.5px] text-[#8A8676]">
-                        預計付款期限：{expectedDate ? (
-                          <span className="text-[#16302B] font-medium tabular-nums">{fmtDate(expectedDate)}（下次上課前）</span>
+                        預計付款期限：{!cycle.paidDate ? (
+                          <span className="text-[#16302B] font-medium tabular-nums">現在</span>
+                        ) : expectedDate ? (
+                          <span className="text-[#16302B] font-medium tabular-nums">{fmtDate(expectedDate)}（下次上課前，供參考）</span>
                         ) : (
-                          <span>設定固定上課星期後可顯示</span>
+                          <span>設定固定上課星期後可顯示下輪預估日</span>
                         )}
                       </div>
                     )}
@@ -1049,25 +1057,13 @@ function TodayStatusBanner({ students }) {
 }
 
 function DueRemindersBanner({ students, onOpen }) {
-  const today = todayStr();
   const items = [];
   students.forEach((st) => {
     if (st.viaPlatform) return;
     unpaidCycles(st).forEach(({ cycle, expectedNext, completedAt }) => {
-      // fires from whichever comes first: the day before the predicted next class,
-      // or 3 days after the round completed (a fallback for when weekdays aren't set,
-      // or just to make sure a reminder appears even before the weekday prediction kicks in)
-      let remindFromStr = null;
-      if (expectedNext) {
-        const d = new Date(expectedNext + "T00:00:00");
-        d.setDate(d.getDate() - 1);
-        remindFromStr = d.toISOString().slice(0, 10);
-      }
-      const fallback = new Date(completedAt + "T00:00:00");
-      fallback.setDate(fallback.getDate() + 3);
-      const fallbackStr = fallback.toISOString().slice(0, 10);
-      if (!remindFromStr || fallbackStr < remindFromStr) remindFromStr = fallbackStr;
-      if (today >= remindFromStr) items.push({ student: st, expectedNext, completedAt });
+      // shows immediately once the previous round completes, and stays visible every
+      // time the app is opened until this round is marked notified or paid — no delay.
+      items.push({ student: st, expectedNext, completedAt });
     });
   });
   if (items.length === 0) return null;
@@ -1282,10 +1278,10 @@ function App() {
             onAddSession={(date, type) => persist(students.map((s) => (s.id === openId ? addSessionToStudent(s, date, type) : s)))}
             onRemoveSession={(sessionId) => persist(students.map((s) => (s.id === openId ? removeSessionFromStudent(s, sessionId) : s)))}
             onDeleteStudent={() => { persist(students.filter((s) => s.id !== openId)); setOpenId(null); }}
-            onEditRate={({ name, rate, rateEffectiveDate, hours, cycleLen, weekdays, email, freeLeaves, status }) => persist(students.map((s) => {
+            onEditRate={({ name, rate, rateEffectiveDate, hours, cycleLen, weekdays, email, freeLeaves, status, viaPlatform }) => persist(students.map((s) => {
               if (s.id !== openId) return s;
               const withRate = setStudentRate(s, rate, rateEffectiveDate);
-              return { ...withRate, name, sessionHours: hours, classesPerCycle: cycleLen, weekdays, email, freeLeaves, status };
+              return { ...withRate, name, sessionHours: hours, classesPerCycle: cycleLen, weekdays, email, freeLeaves, status, viaPlatform };
             }))}
             onShare={() => handleShare(openId)}
             shareBusy={shareBusy}

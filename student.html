@@ -42,6 +42,7 @@ const STRINGS = {
     completedOn: (d) => `已於 ${d} 完成`,
     paymentDue: "預計付款期限：",
     notSet: "尚未設定",
+    now: "現在",
     classTag: "上課",
     leaveTag: "請假",
     noShowTag: "No Show",
@@ -65,6 +66,7 @@ const STRINGS = {
     completedOn: (d) => `Completed on ${d}`,
     paymentDue: "Payment due: ",
     notSet: "Not set",
+    now: "Now",
     classTag: "Class",
     leaveTag: "Leave",
     noShowTag: "No Show",
@@ -111,8 +113,8 @@ function tallyHtml(cycle, total, T) {
   let marks = "";
   const dotWidth = n > 14 ? 4 : 7;
   for (let i = 0; i < n; i++) {
-    const filled = !!classes[i];
-    marks += `<span style="display:inline-block;width:${dotWidth}px;height:18px;border-radius:1px;margin-right:3px;background:${filled ? "#0F6B5C" : "#E4E1D6"}"></span>`;
+    const used = !!classes[i];
+    marks += `<span style="display:inline-block;width:${dotWidth}px;height:18px;border-radius:1px;margin-right:3px;background:${used ? "#E4E1D6" : "#0F6B5C"}"></span>`;
   }
   const leaveTag = leaves.length ? `<span style="font-size:11px;color:#C1833D;font-weight:500;margin-left:6px;">${T.leaveWord} ${leaves.length}</span>` : "";
   return `<div style="display:flex;align-items:center;flex-wrap:wrap;">${marks}${leaveTag}</div>`;
@@ -166,10 +168,12 @@ function render(data) {
     const statusHtml = cycle.completedAt
       ? `<span style="font-size:12px;color:#8A8676;">${T.completedOn(fmtDate(cycle.completedAt))}</span>`
       : `<span style="font-size:12px;color:#8A8676;">${cc}/${total}</span>`;
-    const expectedDate = !cycle.completedAt ? predictedCycleDeadline(cycle, data.weekdays, total) : null;
+    const expectedDate = !cycle.completedAt && cycle.paidDate ? predictedCycleDeadline(cycle, data.weekdays, total) : null;
     const deadlineHtml = !cycle.completedAt
       ? `<div style="font-size:11.5px;color:#8A8676;margin-top:6px;">${T.paymentDue}${
-          expectedDate
+          !cycle.paidDate
+            ? `<span style="color:#16302B;font-weight:500;">${T.now}</span>`
+            : expectedDate
             ? `<span style="color:#16302B;font-weight:500;">${fmtDate(expectedDate)}</span>`
             : T.notSet
         }</div>`
