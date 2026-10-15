@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LanguaBoost 語暢</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><clipPath id=%22c%22><circle cx=%2250%22 cy=%2250%22 r=%2250%22/></clipPath></defs><g clip-path=%22url(%23c)%22><rect x=%220%22 y=%220%22 width=%2250%22 height=%2225%22 fill=%22%23AA151B%22/><rect x=%220%22 y=%2225%22 width=%2250%22 height=%2250%22 fill=%22%23F1BF00%22/><rect x=%220%22 y=%2275%22 width=%2250%22 height=%2225%22 fill=%22%23AA151B%22/><rect x=%2250%22 y=%220%22 width=%2250%22 height=%2250%22 fill=%22%23FFFFFF%22/><rect x=%2250%22 y=%2250%22 width=%2250%22 height=%2250%22 fill=%22%23DC143C%22/></g></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<style>
+  :root{
+    --paper:#DCE4EA;
+    --paper-soft:#EBF0F4;
+    --ink:#26333D;
+    --muted:#66757F;
+    --rule:#BFCCD6;
+    --es:#B8722C;
+    --es-soft:#E9DABF;
+    --pl:#8F3E3E;
+    --pl-soft:#E3D0CD;
+    --shadow: 0 1px 0 rgba(35,38,43,0.06);
+    --radius: 14px;
+    --transition: 320ms cubic-bezier(.4,0,.2,1);
+  }
+  body.evening{
+    --paper:#38404B;
+    --paper-soft:#454E5A;
+    --ink:#EDF0F3;
+    --muted:#AEB6BF;
+    --rule:#565F6B;
+    --es:#D99A54;
+    --es-soft:#463C2E;
+    --pl:#CC7A7A;
+    --pl-soft:#463536;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh;
+    transition: background var(--transition), color var(--transition);
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:20px 18px 80px;}
+  header{padding:6px 0 18px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  h1#app-title{
+    font-family:'Fraunces',serif;
+    font-optical-sizing:auto;
+    font-weight:700;
+    font-size:38px;
+    margin:4px 0 10px;
+    letter-spacing:-0.01em;
+  }
+  h1#app-title .jp{font-size:0.62em;font-weight:600;color:var(--muted);margin-left:6px;}
+  .date-row{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .date-text{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:19px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .lang-badge{
+    padding:2px 10px;
+    border-radius:20px;
+    background:var(--paper-soft);
+    border:1.5px solid var(--rule);
+  }
+  .lang-badge.es{color:var(--es);border-color:var(--es);}
+  .lang-badge.pl{color:var(--pl);border-color:var(--pl);}
+
+  .auth-box{
+    background:var(--paper-soft);
+    border:1.5px solid var(--rule);
+    border-radius:10px;
+    padding:14px;
+    margin-bottom:14px;
+  }
+  .auth-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .auth-row input{
+    flex:1;min-width:140px;
+    background:var(--paper);border:1.5px solid var(--rule);border-radius:8px;
+    font-family:'Inter',sans-serif;
+    font-size:13.5px;color:var(--ink);
+    padding:8px 10px;
+    outline:none;
+  }
+  .auth-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .sync-status{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);white-space:nowrap;}
+  .sync-status.ok{color:#3E8E5A;}
+  .sync-status.err{color:var(--pl);}
+  .signed-in-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+  .tts-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .tts-row select{
+    background:var(--paper-soft);border:1.5px solid var(--rule);border-radius:8px;
+    padding:6px 8px;font-size:12.5px;color:var(--ink);font-family:'IBM Plex Mono',monospace;
+  }
+  .spk-btn{
+    display:inline-flex;align-items:center;gap:3px;
+    background:none;border:1px solid var(--rule);border-radius:20px;
+    padding:2px 8px;font-size:12px;cursor:pointer;color:var(--ink);
+    margin-left:6px;vertical-align:middle;
+  }
+
+  .lang-picker{display:flex;gap:8px;margin:14px 0 6px;}
+  .lang-btn{
+    flex:1;
+    border:1.5px solid var(--rule);
+    background:var(--paper-soft);
+    color:var(--ink);
+    padding:10px 8px;
+    border-radius:10px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    transition: all var(--transition);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .lang-btn[data-lang="es"].active{border-color:var(--es);background:var(--es-soft);}
+  .lang-btn[data-lang="pl"].active{border-color:var(--pl);background:var(--pl-soft);}
+  .lang-btn .dot.es{background:var(--es);}
+  .lang-btn .dot.pl{background:var(--pl);}
+
+  .tabs{display:flex;gap:6px;border-bottom:1.5px solid var(--rule);margin-bottom:18px;overflow-x:auto;}
+  .tab{
+    padding:9px 12px;
+    font-size:13.5px;
+    font-weight:600;
+    color:var(--muted);
+    cursor:pointer;
+    border-bottom:2.5px solid transparent;
+    white-space:nowrap;
+    transition: all var(--transition);
+  }
+  .tab.active{color:var(--ink);border-bottom-color: var(--current-accent, var(--ink));}
+
+  .panel{display:none;}
+  .panel.active{display:block; animation: fadeIn 240ms ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:14px 0 6px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;}
+  input[type=date], input[type=url], textarea{
+    width:100%;
+    background:var(--paper-soft);
+    border:1.5px solid var(--rule);
+    border-radius:10px;
+    padding:10px 12px;
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    font-size:14.5px;
+    resize:vertical;
+  }
+  textarea{min-height:110px; line-height:1.6;}
+  .hint{font-size:12px;color:var(--muted);margin-top:5px;}
+  .btn{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--ink);color:var(--paper);
+    border:none;border-radius:10px;
+    padding:11px 18px;
+    font-weight:600;font-size:14px;
+    cursor:pointer;
+    margin-top:16px;
+    transition: transform 150ms ease, opacity 150ms ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--rule);}
+  .btn.small{padding:7px 12px;font-size:12.5px;margin-top:0;}
+
+  .empty{
+    border:1.5px dashed var(--rule);
+    border-radius:var(--radius);
+    padding:28px 18px;
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+  }
+
+  /* Ticket stub - signature element for review queue */
+  .ticket{
+    position:relative;
+    display:flex;
+    background:var(--paper-soft);
+    border:1.5px solid var(--rule);
+    border-radius:12px;
+    margin-bottom:14px;
+    overflow:hidden;
+  }
+  .ticket-main{flex:1;padding:14px 16px;}
+  .ticket-stub{
+    width:64px;
+    flex-shrink:0;
+    border-left:2px dashed var(--rule);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    position:relative;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--muted);
+    gap:2px;
+  }
+  .ticket-stub::before,.ticket-stub::after{
+    content:'';
+    position:absolute;
+    width:16px;height:16px;
+    background:var(--paper);
+    border-radius:50%;
+    left:-9px;
+  }
+  .ticket-stub::before{top:-8px;}
+  .ticket-stub::after{bottom:-8px;}
+  .ticket-date{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;}
+  .ticket-gap{font-size:11px;color:var(--muted);margin-top:2px;}
+  .ticket-top{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+  .ticket-lang-tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    padding:2px 7px;
+    border-radius:20px;
+    font-weight:600;
+  }
+  .ticket-lang-tag.es{background:var(--es-soft);color:var(--es);}
+  .ticket-lang-tag.pl{background:var(--pl-soft);color:var(--pl);}
+  .ticket-body{display:none;margin-top:12px;border-top:1px solid var(--rule);padding-top:12px;}
+  .ticket.open .ticket-body{display:block;}
+  .ticket-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+
+  .toggle-row{display:flex;gap:8px;margin-bottom:10px;}
+  .toggle-btn{
+    flex:1;
+    border:1.5px solid var(--rule);
+    background:transparent;
+    color:var(--muted);
+    padding:7px 6px;
+    border-radius:8px;
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .toggle-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+
+  .sentence-row{
+    padding:10px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .sentence-row:last-child{border-bottom:none;}
+  .fx{font-size:14.5px;line-height:1.55;}
+  .zh{font-size:14px;line-height:1.55;color:var(--muted);margin-top:3px;}
+  .reveal-btn{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color: var(--current-accent, var(--muted));
+    background:none;border:none;cursor:pointer;
+    padding:4px 0;text-decoration:underline;
+  }
+  .row-actions{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;}
+  .mic-result{margin-top:6px;font-size:13.5px;line-height:1.6;display:none;}
+  .mic-result .said{color:var(--muted);font-size:12.5px;}
+  .mic-result .diffline{margin-top:3px;font-size:14.5px;}
+  .mic-result .miss{color:var(--pl);text-decoration:underline;text-decoration-color:var(--pl);}
+  .mic-result .score{font-size:11.5px;color:var(--muted);margin-top:3px;font-family:'IBM Plex Mono',monospace;}
+
+  audio{width:100%;margin-top:10px;}
+  .stat-line{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin:10px 0 4px;}
+  .mini-link{
+    margin-left:8px;font-size:11px;font-weight:600;background:none;border:none;
+    color:var(--muted);text-decoration:underline;cursor:pointer;padding:0;
+    text-transform:none;letter-spacing:0;font-family:'Inter',sans-serif;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="app-title">LanguaBoost <span class="jp">語暢</span></h1>
+    <div class="date-row">
+      <span id="today-title" class="date-text">—</span>
+      <span id="today-lang-badge" class="date-text lang-badge">—</span>
+    </div>
+
+    <div class="auth-box" id="login-box">
+      <div class="auth-row">
+        <input id="auth-email" type="email" placeholder="Email" autocomplete="username">
+        <input id="auth-password" type="password" placeholder="密碼" autocomplete="current-password">
+      </div>
+      <div class="auth-actions">
+        <button class="btn small" onclick="doSignIn()">登入</button>
+        <span class="sync-status" id="sync-status">未登入</span>
+      </div>
+    </div>
+    <div class="auth-box" id="signed-in-box" style="display:none;">
+      <div class="signed-in-bar">
+        <span class="sync-status" id="signed-in-status">已登入</span>
+        <button class="btn small ghost" onclick="doSignOut()">登出</button>
+      </div>
+      <div id="migrate-box" style="margin-top:10px;">
+        <button class="mini-link" onclick="document.getElementById('migrate-fields').style.display='block'; this.style.display='none';">舊資料還沒過來？點這裡搬資料</button>
+        <div id="migrate-fields" style="display:none; margin-top:8px;">
+          <div class="auth-row">
+            <input id="old-sync-code" type="text" placeholder="輸入你之前設定的同步碼">
+            <button class="btn small" onclick="migrateFromSyncCode()">搬過來</button>
+          </div>
+          <div class="hint" id="migrate-msg"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lang-picker">
+      <button class="lang-btn" data-lang="es" onclick="setTodayLang('es')"><span class="dot es"></span>西班牙文</button>
+      <button class="lang-btn" data-lang="pl" onclick="setTodayLang('pl')"><span class="dot pl"></span>波蘭語</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-panel="upload" onclick="showTab('upload')">新增內容</div>
+    <div class="tab" data-panel="morning" onclick="showTab('morning')">早上・盲聽</div>
+    <div class="tab" data-panel="evening" onclick="showTab('evening')">晚上・回譯</div>
+    <div class="tab" data-panel="review" onclick="showTab('review')">複習</div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="panel active" id="panel-upload">
+    <label>日期</label>
+    <input type="date" id="in-date" onchange="onDateChange()">
+
+    <div class="hint" id="edit-hint" style="display:none;"></div>
+
+    <label>外文文本</label>
+    <textarea id="in-foreign" placeholder="Hoy hace mucho sol.&#10;Vamos a caminar por el parque."></textarea>
+
+    <label>中文翻譯</label>
+    <textarea id="in-zh" placeholder="今天陽光很大。&#10;我們去公園散步吧。"></textarea>
+
+    <label>音檔連結</label>
+    <input type="url" id="in-audio" placeholder="https://example.com/audio/0830.mp3">
+
+    <button class="btn" onclick="saveEntry()">儲存</button>
+    <div class="hint" id="upload-msg"></div>
+  </div>
+
+  <!-- MORNING -->
+  <div class="panel" id="panel-morning">
+    <div id="morning-content"></div>
+  </div>
+
+  <!-- EVENING -->
+  <div class="panel" id="panel-evening">
+    <div id="evening-content"></div>
+  </div>
+
+  <!-- REVIEW -->
+  <div class="panel" id="panel-review">
+    <div class="stat-line" id="review-stat"></div>
+    <div id="review-list"></div>
+  </div>
+
+</div>
+
+<script>
+// ===== 請填入你自己的 Firebase 設定（Firebase 主控台 → 專案設定 → 一般 → 你的應用程式）=====
+const firebaseConfig = {
+  apiKey: "AIzaSyAAtu_JGYQg9qm1ym45YXTLlj_pBfIvJng",
+  authDomain: "langaboost.firebaseapp.com",
+  projectId: "langaboost",
+  storageBucket: "langaboost.firebasestorage.app",
+  messagingSenderId: "532884154382",
+  appId: "1:532884154382:web:bb3fc624a75bb8f50ef45f"
+};
+// ================================================================================
+
+let db = null;
+let auth = null;
+let currentUser = null;
+
+function initFirebase(){
+  try{
+    if(firebaseConfig.apiKey === "YOUR_API_KEY"){
+      setSyncStatus('尚未設定 Firebase（請編輯檔案內的 firebaseConfig）', 'err');
+      return false;
+    }
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    auth = firebase.auth();
+    return true;
+  }catch(e){
+    console.error(e);
+    setSyncStatus('Firebase 初始化失敗', 'err');
+    return false;
+  }
+}
+function setSyncStatus(text, cls){
+  const el = document.getElementById('sync-status');
+  if(el){ el.textContent = text; el.className = 'sync-status' + (cls ? ' '+cls : ''); }
+}
+function setSignedInStatus(text, cls){
+  const el = document.getElementById('signed-in-status');
+  if(el){ el.textContent = text; el.className = 'sync-status' + (cls ? ' '+cls : ''); }
+}
+function showAuthUI(signedIn, emailForDisplay){
+  document.getElementById('login-box').style.display = signedIn ? 'none' : 'block';
+  document.getElementById('signed-in-box').style.display = signedIn ? 'block' : 'none';
+  if(signedIn) setSignedInStatus('已登入：' + emailForDisplay, 'ok');
+}
+async function doSignUp(){
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-password').value;
+  if(!email || pw.length < 6){ setSyncStatus('請輸入 Email，密碼至少 6 碼', 'err'); return; }
+  try{
+    setSyncStatus('註冊中…');
+    await auth.createUserWithEmailAndPassword(email, pw);
+  }catch(e){
+    console.error(e);
+    setSyncStatus('註冊失敗：' + (e.message || e.code), 'err');
+  }
+}
+async function doSignIn(){
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-password').value;
+  if(!email || !pw){ setSyncStatus('請輸入 Email 和密碼', 'err'); return; }
+  try{
+    setSyncStatus('登入中…');
+    await auth.signInWithEmailAndPassword(email, pw);
+  }catch(e){
+    console.error(e);
+    setSyncStatus('登入失敗：' + (e.message || e.code), 'err');
+  }
+}
+async function doSignOut(){
+  await auth.signOut();
+}
+async function onAuthChanged(user){
+  currentUser = user;
+  if(user){
+    showAuthUI(true, user.email);
+    await loadEntries();
+    todayLang = langForDate(selectedDate);
+    updateLangButtons();
+    loadForEdit();
+    renderAll();
+  }else{
+    showAuthUI(false);
+    entries = [];
+    renderAll();
+  }
+}
+
+// ===== AI 朗讀（瀏覽器內建 Web Speech API，免費、不需連 Firebase 以外的任何服務）=====
+if('speechSynthesis' in window){
+  speechSynthesis.onvoiceschanged = ()=>{ populateVoiceSelect(todayLang); };
+}
+function langTag(lang){ return lang==='es' ? 'es-ES' : 'pl-PL'; }
+function pickVoice(lang){
+  if(!('speechSynthesis' in window)) return null;
+  const voices = speechSynthesis.getVoices();
+  const prefix = lang==='es' ? 'es' : 'pl';
+  return voices.find(v=>v.lang.toLowerCase().startsWith(prefix)) || null;
+}
+function populateVoiceSelect(lang){
+  const sel = document.getElementById('tts-voice');
+  if(!sel || !('speechSynthesis' in window)) return;
+  const prefix = lang==='es' ? 'es' : 'pl';
+  const voices = speechSynthesis.getVoices().filter(v=>v.lang.toLowerCase().startsWith(prefix));
+  sel._voices = voices;
+  sel.dataset.lang = lang;
+  sel.innerHTML = voices.length
+    ? voices.map((v,i)=>`<option value="${i}">${escapeHtml(v.name)}${v.localService?'':'（線上）'}</option>`).join('')
+    : `<option value="">（系統沒有這個語言的聲音，見下方說明）</option>`;
+}
+function currentVoice(lang){
+  const sel = document.getElementById('tts-voice');
+  if(sel && sel.dataset.lang===lang && sel._voices && sel._voices.length){
+    const idx = parseInt(sel.value,10);
+    if(!isNaN(idx) && sel._voices[idx]) return sel._voices[idx];
+  }
+  return pickVoice(lang);
+}
+function currentRate(){
+  const el = document.getElementById('tts-rate');
+  return el ? parseFloat(el.value) : 0.9;
+}
+function speakOne(text, lang){
+  if(!('speechSynthesis' in window)){ alert('這個瀏覽器不支援語音朗讀，請改用貼音檔連結。'); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = langTag(lang);
+  const v = currentVoice(lang);
+  if(v) u.voice = v;
+  u.rate = currentRate();
+  speechSynthesis.speak(u);
+}
+function speakSentences(sentences, lang){
+  if(!('speechSynthesis' in window)){ alert('這個瀏覽器不支援語音朗讀，請改用貼音檔連結。'); return; }
+  speechSynthesis.cancel();
+  const v = currentVoice(lang);
+  sentences.forEach(s=>{
+    const u = new SpeechSynthesisUtterance(s);
+    u.lang = langTag(lang);
+    if(v) u.voice = v;
+    u.rate = currentRate();
+    speechSynthesis.speak(u);
+  });
+}
+function speakEntry(date, lang){
+  const e = entries.find(x=>x.date===date && x.language===lang);
+  if(!e) return;
+  const nonEmpty = e.foreign.filter(s=>s && s.trim());
+  if(nonEmpty.length===0){ alert('這天還沒有填外文文字，沒東西可以朗讀。'); return; }
+  speakSentences(nonEmpty, lang);
+}
+function speakSentenceText(btn){
+  speakOne(btn.dataset.text, btn.dataset.lang);
+}
+function stopSpeaking(){
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+}
+function escapeAttr(s){
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ===== 口說錄音比對（瀏覽器內建語音辨識，Chrome/Edge 支援較好，iOS Safari 不支援）=====
+function stripPunct(s){
+  // 先去除零寬字元／BOM 等看不見的隱藏字元，並統一 Unicode 正規化，避免明明講對卻比對失敗
+  return s.normalize('NFC').replace(/[\u200B-\u200D\uFEFF\u00A0]/g,'').trim().replace(/[.,!?¡¿;:"'()\-]/g,'');
+}
+function wordsOf(text){ return stripPunct(text).split(/\s+/).filter(Boolean); }
+function diffAgainstTarget(targetText, saidText){
+  const aDisplay = wordsOf(targetText);
+  const aLower = aDisplay.map(w=>w.toLowerCase());
+  const bLower = wordsOf(saidText).map(w=>w.toLowerCase());
+  const m = aLower.length, n = bLower.length;
+  // 逐字往前找配對（誰先出現就先配對），比原本用平手時容易誤判的 DP 演算法更直觀、更不會誤傷開頭的字
+  const matched = new Array(m).fill(false);
+  let bPos = 0;
+  for(let i=0; i<m; i++){
+    let found = -1;
+    for(let k=bPos; k<n; k++){
+      if(bLower[k]===aLower[i]){ found = k; break; }
+    }
+    if(found !== -1){ matched[i] = true; bPos = found + 1; }
+  }
+  const lcs = matched.filter(Boolean).length;
+  const score = (m+n)===0 ? 100 : Math.round(200*lcs/(m+n));
+  return {aDisplay, matched, score};
+}
+let activeRecognition = null;
+function startRecognition(btn){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ alert('這個瀏覽器不支援語音辨識，建議用電腦版或 Android 的 Chrome / Edge（iPhone Safari 目前不支援這個功能）。'); return; }
+
+  // 已經在錄音了 → 這次點擊是手動結束
+  if(btn.dataset.recording === '1'){
+    if(activeRecognition){ try{ activeRecognition.stop(); }catch(e){} }
+    return;
+  }
+
+  const target = btn.dataset.target;
+  const lang = btn.dataset.lang;
+  const row = btn.closest('.sentence-row');
+  const resultEl = row ? row.querySelector('.mic-result') : null;
+  const rec = new SR();
+  activeRecognition = rec;
+  rec.lang = langTag(lang);
+  rec.interimResults = true;
+  rec.continuous = true; // 連續聆聽，不會因為短暫停頓就自動結束
+  rec.maxAlternatives = 1;
+
+  let finalTranscript = '';
+  const origText = btn.textContent;
+  btn.textContent = '🎙️ 錄音中…（再按一次結束）';
+  btn.dataset.recording = '1';
+
+  const safetyTimeout = setTimeout(()=>{ try{ rec.stop(); }catch(e){} }, 20000); // 20 秒保險自動停止
+
+  rec.onresult = (e)=>{
+    let interim = '';
+    for(let i=e.resultIndex; i<e.results.length; i++){
+      if(e.results[i].isFinal){ finalTranscript += e.results[i][0].transcript + ' '; }
+      else{ interim += e.results[i][0].transcript; }
+    }
+    if(resultEl){
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `<div class="said">你說的：${escapeHtml((finalTranscript + interim).trim())}</div>`;
+    }
+  };
+  rec.onerror = (e)=>{
+    if(resultEl){
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `<div class="score" style="color:var(--pl);">辨識失敗（${e.error}），可以再試一次，或按「顯示外文」自行核對。</div>`;
+    }
+  };
+  rec.onend = ()=>{
+    clearTimeout(safetyTimeout);
+    btn.textContent = origText;
+    btn.dataset.recording = '0';
+    activeRecognition = null;
+    const said = finalTranscript.trim();
+    if(said && resultEl){
+      const {aDisplay, matched, score} = diffAgainstTarget(target, said);
+      const html = aDisplay.map((w,i)=> matched[i] ? `<span>${escapeHtml(w)}</span>` : `<span class="miss">${escapeHtml(w)}</span>`).join(' ');
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `<div class="said">你說的：${escapeHtml(said)}</div><div class="diffline">對照：${html}</div><div class="score">相符度 ${score}%（紅字底線＝沒對到的地方）</div>`;
+    }
+  };
+  try{ rec.start(); }catch(err){ btn.textContent = origText; btn.dataset.recording = '0'; activeRecognition = null; }
+}
+
+const TIERS = [1,2,4,7,15,30,60]; // interval in "same-language sessions"
+const LANG_LABEL = {es:'西班牙文', pl:'波蘭語'};
+let entries = [];
+function getLocalDateStr(d){ return (d||new Date()).toLocaleDateString('en-CA'); } // 用本機時區的日期，而不是 UTC
+let todayStr = getLocalDateStr();
+let selectedDate = todayStr;
+let todayLang = 'es'; // language for `selectedDate`
+
+function fmtDate(d){
+  const dt = new Date(d+'T00:00:00');
+  return `${dt.getMonth()+1}/${dt.getDate()}`;
+}
+function daysBetween(d1, d2){
+  const a = new Date(d1+'T00:00:00');
+  const b = new Date(d2+'T00:00:00');
+  return Math.round((b-a)/86400000);
+}
+// 根據既有紀錄的交替規律，推算某個日期「應該」練習哪個語言
+function langForDate(date){
+  const existing = entries.find(e=>e.date===date);
+  if(existing) return existing.language;
+  if(entries.length===0) return 'es';
+  // 沒有當天資料：依「練習順序」輪替，與跳過幾天無關
+  // 找最近的前一筆（沒有就找最近的後一筆），語言取相反
+  const sorted = entries.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const before = sorted.filter(e=>e.date<date);
+  const ref = before.length ? before[before.length-1] : sorted.find(e=>e.date>date);
+  return ref.language==='es' ? 'pl' : 'es';
+}
+
+async function loadEntries(){
+  if(!db || !currentUser){ entries = []; setSyncStatus(db ? '請先登入' : '未連線', 'err'); return; }
+  try{
+    setSignedInStatus('讀取中…');
+    const doc = await db.collection('journals').doc(currentUser.uid).get();
+    entries = doc.exists && doc.data().payload ? JSON.parse(doc.data().payload) : [];
+    setSignedInStatus('已登入：' + currentUser.email + '（已同步 ✓）', 'ok');
+  }catch(e){
+    console.error('firestore load error', e);
+    entries = [];
+    setSignedInStatus('讀取失敗，檢查網路/Firestore 規則', 'err');
+  }
+}
+async function persistEntries(){
+  if(!db || !currentUser){ setSyncStatus('未登入，未儲存', 'err'); return; }
+  try{
+    setSignedInStatus('儲存中…');
+    await db.collection('journals').doc(currentUser.uid).set({payload: JSON.stringify(entries), updatedAt: Date.now()});
+    setSignedInStatus('已登入：' + currentUser.email + '（已同步 ✓）', 'ok');
+  }catch(e){
+    console.error('firestore save error', e);
+    setSignedInStatus('儲存失敗，檢查網路/Firestore 規則', 'err');
+  }
+}
+
+// ===== 從舊版「同步碼」資料搬到新帳號底下（一次性，之後可以把 Firestore 規則改回全鎖）=====
+async function migrateFromSyncCode(){
+  const msg = document.getElementById('migrate-msg');
+  const oldCode = document.getElementById('old-sync-code').value.trim();
+  if(!oldCode){ msg.textContent = '請輸入舊的同步碼。'; return; }
+  if(!db || !currentUser){ msg.textContent = '請先登入。'; return; }
+  try{
+    msg.textContent = '搬移中…';
+    const doc = await db.collection('journals').doc(oldCode).get();
+    if(!doc.exists || !doc.data().payload){
+      msg.textContent = '找不到這組同步碼底下的資料，確認字串是否打對。';
+      return;
+    }
+    const oldEntries = JSON.parse(doc.data().payload);
+    const key = e => e.date + '|' + e.language;
+    const existingKeys = new Set(entries.map(key));
+    let added = 0;
+    oldEntries.forEach(e=>{
+      if(!existingKeys.has(key(e))){ entries.push(e); added++; }
+    });
+    await persistEntries();
+    msg.textContent = `搬移完成，新增了 ${added} 筆紀錄（重複的日期已略過）。`;
+    todayLang = langForDate(selectedDate);
+    updateLangButtons();
+    loadForEdit();
+    renderAll();
+  }catch(e){
+    console.error('migrate error', e);
+    msg.textContent = '搬移失敗——請確認 Firestore 規則暫時有開放讀取舊資料（見教學文件說明）。';
+  }
+}
+
+function entriesFor(lang){
+  return entries.filter(e=>e.language===lang).sort((a,b)=>a.date.localeCompare(b.date));
+}
+function sessionIndexOf(lang, date){
+  const list = entriesFor(lang);
+  const i = list.findIndex(e=>e.date===date);
+  return i===-1 ? null : i+1;
+}
+function todaysSessionNumber(lang, refDate){
+  refDate = refDate || todayStr;
+  const list = entriesFor(lang);
+  const hasToday = list.some(e=>e.date===refDate);
+  return hasToday ? sessionIndexOf(lang, refDate) : list.length+1;
+}
+function dueEntries(lang, refDate){
+  refDate = refDate || todayStr;
+  const todaySess = todaysSessionNumber(lang, refDate);
+  return entriesFor(lang)
+    .filter(e=>!e.mastered && e.date!==refDate)
+    .map(e=>({entry:e, gap: todaySess - sessionIndexOf(lang,e.date)}))
+    .filter(x=>TIERS.includes(x.gap));
+}
+
+function updateLangButtons(){
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active', b.dataset.lang===todayLang));
+  document.documentElement.style.setProperty('--current-accent', todayLang==='es' ? 'var(--es)' : 'var(--pl)');
+}
+
+function setTodayLang(lang){
+  todayLang = lang;
+  updateLangButtons();
+  loadForEdit();
+  renderAll();
+}
+
+function onDateChange(){
+  selectedDate = document.getElementById('in-date').value || todayStr;
+  todayLang = langForDate(selectedDate);
+  loadDoneTodayFor(selectedDate);
+  updateLangButtons();
+  loadForEdit();
+  renderAll();
+}
+
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.panel===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
+  document.body.classList.toggle('evening', name==='evening');
+  renderAll();
+}
+
+function computeArr(text){
+  return text.trim() ? text.trim().split('\n').map(s=>s.trim()).filter(Boolean) : [];
+}
+
+function loadForEdit(){
+  const date = selectedDate;
+  const entry = entries.find(e=>e.date===date && e.language===todayLang);
+  const hint = document.getElementById('edit-hint');
+  if(entry){
+    document.getElementById('in-foreign').value = entry.foreign.join('\n');
+    document.getElementById('in-zh').value = entry.zh.join('\n');
+    document.getElementById('in-audio').value = entry.audioUrl || '';
+    hint.style.display = 'block';
+    hint.textContent = `已載入 ${date}（${LANG_LABEL[todayLang]}）現有內容，可以直接編輯後存檔覆蓋。`;
+  }else{
+    document.getElementById('in-foreign').value = '';
+    document.getElementById('in-zh').value = '';
+    document.getElementById('in-audio').value = '';
+    hint.style.display = 'none';
+  }
+}
+
+async function saveEntry(){
+  const date = selectedDate;
+  const fxRaw = document.getElementById('in-foreign').value;
+  const zhRaw = document.getElementById('in-zh').value;
+  const audio = document.getElementById('in-audio').value.trim();
+  const msg = document.getElementById('upload-msg');
+  const fxArr = computeArr(fxRaw);
+  const zhArr = computeArr(zhRaw);
+  if(fxArr.length===0 && zhArr.length===0){
+    msg.textContent = '外文或中文至少要填一邊喔。';
+    return;
+  }
+  const len = Math.max(fxArr.length, zhArr.length);
+  const fx = Array.from({length: len}, (_, i) => fxArr[i] || '');
+  const zh = Array.from({length: len}, (_, i) => zhArr[i] || '');
+  entries = entries.filter(e=>!(e.date===date && e.language===todayLang));
+  entries.push({date, language: todayLang, foreign: fx, zh: zh, audioUrl: audio, mastered:false});
+  await persistEntries();
+  const note = fxArr.length !== zhArr.length ? '（外文、中文行數不同，已按各自內容對齊儲存，可能有幾句對不準，建議之後檢查一下）' : '';
+  msg.textContent = `已儲存 ${date}（${LANG_LABEL[todayLang]}），共 ${len} 句 ${note}`;
+  loadForEdit();
+  renderAll();
+}
+
+function sentenceBlock(entry, opts){
+  const {compareMode=true} = opts||{};
+  return entry.foreign.map((f,i)=>{
+    const zh = entry.zh[i];
+    const fDisplay = f || '（尚未填寫外文）';
+    const zhDisplay = zh || '（尚未填寫中文）';
+    const revealId = `rv_${entry.date}_${entry.language}_${i}`.replace(/[^a-zA-Z0-9_]/g,'');
+    const spkBtn = f ? `<button class="spk-btn" data-text="${escapeAttr(f)}" data-lang="${entry.language}" onclick="speakSentenceText(this)">🔊</button>` : '';
+    if(compareMode){
+      return `<div class="sentence-row"><div class="fx">${escapeHtml(fDisplay)}${spkBtn}</div><div class="zh">${escapeHtml(zhDisplay)}</div></div>`;
+    }
+    const micBtn = f ? `<button class="spk-btn" data-target="${escapeAttr(f)}" data-lang="${entry.language}" onclick="startRecognition(this)">🎤 口說比對</button>` : '';
+    return `<div class="sentence-row">
+      <div class="zh">${escapeHtml(zhDisplay)}</div>
+      <div class="row-actions">
+        <button class="reveal-btn" onclick="document.getElementById('${revealId}').style.display='block'; this.style.display='none';">顯示外文 →</button>
+        ${micBtn}
+      </div>
+      <div id="${revealId}" style="display:none" class="fx">${escapeHtml(fDisplay)}${spkBtn}</div>
+      <div class="mic-result"></div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function renderMorning(){
+  const el = document.getElementById('morning-content');
+  const entry = entries.find(e=>e.date===selectedDate && e.language===todayLang);
+  if(!entry){
+    el.innerHTML = `<div class="empty">${selectedDate}（${LANG_LABEL[todayLang]}）還沒有上傳內容。<br>先到「新增內容」上傳吧。</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="stat-line">${selectedDate} · ${LANG_LABEL[todayLang]} · 共 ${entry.foreign.length} 句</div>
+    ${entry.audioUrl ? `<audio controls src="${escapeHtml(entry.audioUrl)}"></audio>` : ``}
+    <div class="tts-row">
+      <button class="btn ghost small" onclick="speakEntry('${entry.date}','${entry.language}')">▶ AI 朗讀外文（盲聽）</button>
+      <button class="btn ghost small" onclick="stopSpeaking()">■ 停止</button>
+      <select id="tts-rate">
+        <option value="0.7">慢速 0.7x</option>
+        <option value="0.9" selected>正常 0.9x</option>
+        <option value="1.0">1.0x</option>
+        <option value="1.15">快 1.15x</option>
+      </select>
+      <select id="tts-voice"></select>
+    </div>
+    <button class="btn ghost" id="reveal-morning-btn" onclick="document.getElementById('morning-text').style.display='block'; this.style.display='none';" style="margin-top:14px;">聽完了，顯示文字對照 →</button>
+    <div id="morning-text" style="display:none; margin-top:10px;">
+      ${sentenceBlock(entry, {compareMode:true})}
+    </div>
+  `;
+  populateVoiceSelect(todayLang);
+}
+
+function renderEvening(){
+  const el = document.getElementById('evening-content');
+  const entry = entries.find(e=>e.date===selectedDate && e.language===todayLang);
+  if(!entry){
+    el.innerHTML = `<div class="empty">${selectedDate}（${LANG_LABEL[todayLang]}）還沒有上傳內容，沒有東西可以回譯。</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="stat-line">${selectedDate} · ${LANG_LABEL[todayLang]} · 看中文，翻回外文</div>
+    ${sentenceBlock(entry, {compareMode:false})}
+  `;
+}
+
+let doneToday = new Set();
+function loadDoneTodayFor(date){
+  try{ doneToday = new Set(JSON.parse(localStorage.getItem('doneToday_'+date) || '[]')); }catch(e){ doneToday = new Set(); }
+}
+loadDoneTodayFor(todayStr);
+function markDoneToday(date, lang){
+  doneToday.add(date+'|'+lang);
+  try{ localStorage.setItem('doneToday_'+selectedDate, JSON.stringify([...doneToday])); }catch(e){}
+  renderReview();
+}
+function undoDoneToday(date, lang){
+  doneToday.delete(date+'|'+lang);
+  try{ localStorage.setItem('doneToday_'+selectedDate, JSON.stringify([...doneToday])); }catch(e){}
+  renderReview();
+}
+
+function renderReview(){
+  const stat = document.getElementById('review-stat');
+  const list = document.getElementById('review-list');
+  const reviewLang = todayLang;
+  const allDue = dueEntries(reviewLang, selectedDate).sort((a,b)=>a.entry.date.localeCompare(b.entry.date));
+  const due = allDue.filter(x=>!doneToday.has(x.entry.date+'|'+x.entry.language));
+  const doneList = allDue.filter(x=>doneToday.has(x.entry.date+'|'+x.entry.language));
+  stat.textContent = `${selectedDate}（第 ${todaysSessionNumber(reviewLang, selectedDate)} 次練習 ${LANG_LABEL[reviewLang]}）剩 ${due.length} 個日期待複習`;
+  const doneHtml = doneList.length ? `
+    <div style="margin-top:18px; padding-top:12px; border-top:1.5px dashed var(--rule);">
+      <div class="stat-line">${selectedDate} 已標記完成（${doneList.length}）</div>
+      ${doneList.map(({entry})=>`
+        <div class="batch-row">
+          <span>${entry.date} · ${LANG_LABEL[entry.language]}</span>
+          <button class="btn small ghost" onclick="undoDoneToday('${entry.date}','${entry.language}')">↺ 復原</button>
+        </div>
+      `).join('')}
+    </div>` : '';
+  if(due.length===0){
+    list.innerHTML = `<div class="empty">今天沒有排到需要複習的日期（或都複習完了）。</div>${doneHtml}`;
+    return;
+  }
+  list.innerHTML = due.map(({entry,gap})=>{
+    const langTag = entry.language==='es' ? 'es' : 'pl';
+    return `
+    <div class="ticket" id="ticket-${entry.date}-${entry.language}">
+      <div class="ticket-main">
+        <div class="ticket-top">
+          <span class="ticket-lang-tag ${langTag}">${LANG_LABEL[entry.language]}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);">${entry.date} · 間隔 ${gap} 次</span>
+        </div>
+        <div class="toggle-row">
+          <button class="toggle-btn active" onclick="setTicketMode('${entry.date}','${entry.language}',true,this)">中外對照</button>
+          <button class="toggle-btn" onclick="setTicketMode('${entry.date}','${entry.language}',false,this)">只看中文（回譯）</button>
+        </div>
+        <button class="btn small ghost" onclick="toggleTicket('${entry.date}','${entry.language}')">展開 / 收合</button>
+        <div class="ticket-body" data-mode="compare">
+          ${sentenceBlock(entry,{compareMode:true})}
+        </div>
+        <div class="ticket-actions">
+          <button class="btn small ghost" onclick="speakEntry('${entry.date}','${entry.language}')">▶ AI 朗讀</button>
+          <button class="btn small ghost" onclick="markDoneToday('${entry.date}','${entry.language}')">✓ 今天複習完成</button>
+          <button class="btn small ghost" onclick="markMastered('${entry.date}','${entry.language}')">✓✓ 已熟記，永久移出</button>
+        </div>
+      </div>
+      <div class="ticket-stub">
+        <div class="ticket-date">${fmtDate(entry.date)}</div>
+        <div class="ticket-gap">gap ${gap}</div>
+      </div>
+    </div>`;
+  }).join('') + doneHtml;
+}
+
+function toggleTicket(date, lang){
+  document.getElementById(`ticket-${date}-${lang}`).classList.toggle('open');
+}
+function setTicketMode(date, lang, compare, btn){
+  const ticket = document.getElementById(`ticket-${date}-${lang}`);
+  ticket.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const entry = entries.find(e=>e.date===date && e.language===lang);
+  const body = ticket.querySelector('.ticket-body');
+  body.innerHTML = sentenceBlock(entry, {compareMode: compare});
+  ticket.classList.add('open');
+}
+async function markMastered(date, lang){
+  const e = entries.find(e=>e.date===date && e.language===lang);
+  if(e){ e.mastered = true; await persistEntries(); renderReview(); }
+}
+
+function updateHeader(){
+  const headerLang = langForDate(todayStr);
+  document.getElementById('today-title').textContent = todayStr;
+  const badge = document.getElementById('today-lang-badge');
+  badge.textContent = LANG_LABEL[headerLang];
+  badge.className = 'date-text lang-badge ' + headerLang;
+}
+
+function renderAll(){
+  updateHeader();
+  renderMorning();
+  renderEvening();
+  renderReview();
+}
+
+async function init(){
+  document.getElementById('in-date').value = selectedDate;
+  const ok = initFirebase();
+  if(ok){
+    auth.onAuthStateChanged(onAuthChanged);
+  }else{
+    showAuthUI(false);
+  }
+  todayLang = langForDate(selectedDate);
+  updateLangButtons();
+  loadForEdit();
+  renderAll();
+}
+init();
+</script>
+</body>
+</html>
